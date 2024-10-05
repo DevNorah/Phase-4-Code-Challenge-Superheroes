@@ -52,6 +52,38 @@ def hero(hero_id):
         db.session.delete(hero)
         db.session.commit()
         return make_response({'message': 'Hero deleted'}, 204)
+    
+# Routes for Power
+@app.route('/powers', methods=['GET', 'POST'])
+def powers():
+    if request.method == 'GET':
+        powers = Power.query.all()
+        return make_response(jsonify([power.to_dict() for power in powers]), 200)
+    elif request.method == 'POST':
+        new_power = Power(
+            name=request.json['name'], 
+            description=request.json['description']
+        )
+        db.session.add(new_power)
+        db.session.commit()
+        return make_response(new_power.to_dict(), 201)
+
+@app.route('/powers/<int:power_id>', methods=['GET', 'PUT', 'DELETE'])
+def power(power_id):
+    power = Power.query.get_or_404(power_id)
+    if request.method == 'GET':
+        return make_response(power.to_dict(), 200)
+    elif request.method == 'PUT':
+        power.name = request.json.get('name', power.name)
+        power.description = request.json.get('description', power.description)
+        db.session.commit()
+        return make_response(power.to_dict(), 200)
+    elif request.method == 'DELETE':
+        db.session.delete(power)
+        db.session.commit()
+        return make_response({'message': 'Power deleted'}, 204)
+
+
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
