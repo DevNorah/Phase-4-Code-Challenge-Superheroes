@@ -83,6 +83,35 @@ def power(power_id):
         db.session.commit()
         return make_response({'message': 'Power deleted'}, 204)
 
+# Routes for HeroPower
+@app.route('/hero_powers', methods=['GET', 'POST'])
+def hero_powers():
+    if request.method == 'GET':
+        hero_powers = HeroPower.query.all()
+        return make_response(jsonify([hero_power.to_dict() for hero_power in hero_powers]), 200)
+    elif request.method == 'POST':
+        new_hero_power = HeroPower(
+            strength=request.json['strength'],
+            hero_id=request.json['hero_id'],
+            power_id=request.json['power_id']
+        )
+        db.session.add(new_hero_power)
+        db.session.commit()
+        return make_response(new_hero_power.to_dict(), 201)
+
+@app.route('/hero_powers/<int:hero_power_id>', methods=['GET', 'PUT', 'DELETE'])
+def hero_power(hero_power_id):
+    hero_power = HeroPower.query.get_or_404(hero_power_id)
+    if request.method == 'GET':
+        return make_response(hero_power.to_dict(), 200)
+    elif request.method == 'PUT':
+        hero_power.strength = request.json.get('strength', hero_power.strength)
+        db.session.commit()
+        return make_response(hero_power.to_dict(), 200)
+    elif request.method == 'DELETE':
+        db.session.delete(hero_power)
+        db.session.commit()
+        return make_response({'message': 'HeroPower deleted'}, 204)
 
 
 if __name__ == '__main__':
