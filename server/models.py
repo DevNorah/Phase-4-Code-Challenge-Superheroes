@@ -18,7 +18,8 @@ class Hero(db.Model, SerializerMixin):
     name = db.Column(db.String)
     super_name = db.Column(db.String)
 
-    # add relationship
+    # adds relationship 
+    powers = db.relationship('HeroPower', back_populates='hero', cascade='all, delete-orphan')
 
     # add serialization rules
 
