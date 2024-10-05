@@ -52,7 +52,8 @@ class HeroPower(db.Model, SerializerMixin):
     strength = db.Column(db.String, nullable=False)
 
     # add relationships
-
+    hero = db.relationship("Hero" ,back_populates = "powers")
+    power = db.relationship("Power" ,back_populates = "heroes")
     # add serialization rules
 
     # add validation
