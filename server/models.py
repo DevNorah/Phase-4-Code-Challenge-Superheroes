@@ -35,6 +35,7 @@ class Power(db.Model, SerializerMixin):
     description = db.Column(db.String)
 
     # add relationship
+    heroes = db.relationship('HeroPower', back_populates='power'  , cascade='all, delete-orphan')
 
     # add serialization rules
 
