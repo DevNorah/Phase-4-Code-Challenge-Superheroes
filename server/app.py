@@ -2,107 +2,97 @@
 
 from flask import Flask, request, make_response, jsonify
 from flask_migrate import Migrate
-from flask_restful import Api, Resource
 from models import db, Hero, Power, HeroPower
 import os
+from flask_cors import CORS
 
+# Set up the base directory and database URI
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.environ.get(
     "DB_URI", f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}")
 
+# Initialize the Flask application
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
+# Initialize database migrations
 migrate = Migrate(app, db)
 
+# Initialize the database with the app context
 db.init_app(app)
+CORS(app)
 
 @app.route('/')
 def index():
     return '<h1>Code challenge</h1>'
 
-# Routes for Hero
+# Route to get all heroes
 @app.route('/heroes')
 def heroes():
     heroes = Hero.query.all()
     response = [hero.to_dict(only=("id", "name", "super_name")) for hero in heroes]
     return make_response(response, 200)
-    
+
+# Route to get a hero by ID
 @app.route('/heroes/<int:id>')
 def heroes_by_id(id):
-    hero = Hero.query.filter(Hero.id==id).first()
+    # Query the Hero model for a hero with the given ID
+    hero = Hero.query.filter_by(id=id).first()
+    
+    # If the hero does not exist, return a 404 error
     if not hero:
-        error_body = {
-            "error": "Hero not found"
-            }
+        error_body = {"error": "Hero not found"}
         return make_response(error_body, 404)
     
+    # If the hero exists, return the hero's details as JSON
     return make_response(hero.to_dict(), 200)
-    
-# Routes for Power
+
+# Route to get all powers
 @app.route('/powers')
 def powers():
-   powers = [power.to_dict(only=('description', 'id', 'name')) for power in Power.query.all()]
-   return make_response(powers, 200)
+    powers = Power.query.all()
+    response = [power.to_dict(only= ("description", "id", "name")) for power in powers]
+    return make_response(response, 200)
 
-@app.route('/powers/<int:power_id>', methods=['GET', 'PATCH'])
-def power(power_id):
-    power = Power.query.get_or_404(power_id)
-    if request.method == 'GET':
-        return make_response(power.to_dict(), 200)
-    elif request.method == 'PATCH':
-        power.name = request.json.get('name', power.name)
-        power.description = request.json.get('description', power.description)
-        db.session.commit()
-        return make_response(power.to_dict(), 200)
-    validation_errors = []
-
+# Route to get or update a power by ID
+@app.route('/powers/<int:id>', methods=['GET', 'PATCH'])
+def powers_by_id(id):
+    # Query the Power model for a power with the given ID
+    power = Power.query.filter_by(id=id).first()
     
-    for attr in request.json:
-        if attr == 'description':
-            description_value = request.json.get(attr)
-            if not isinstance(description_value, str) or len(description_value) < 20:
-                validation_errors.append("validation errors")
+    if request.method == "GET":
+        if power:
+            response = power.to_dict(only=("description", "id", "name"))
+            return make_response(response,200)
         else:
-            setattr(power, attr, request.json.get(attr))
-            
-        if validation_errors:
-            return make_response({"errors": validation_errors}, 400) 
+            return  make_response({"error": "Power not found"}, 404)
 
-        for attr in request.json:
-            setattr(power, attr, request.json.get(attr))
+    elif request.method == "PATCH":
+        if not power:
+            return make_response({"error": "Power not found"}, 404)
+        data = request.get_json() if request.is_json else request.form
+        try:
+            for key, value in data.items():
+                setattr(power, key, value)
+            db.session.commit()
+            return make_response(power.to_dict(), 200)
+        except ValueError:
+            return  make_response({"errors": ["validation errors"]}, 400)
 
-        db.session.commit()
-        return make_response(power.to_dict(), 200)
 
-   
-# Routes for HeroPower
-@app.route('/hero_powers', methods=['GET', 'POST'])
+# Route for managing HeroPower relationships
+@app.route('/hero_powers', methods=['POST'])
 def hero_powers():
-    if request.method == 'GET':
-        hero_power = HeroPower.query.all()
-        return make_response(([hero_power.to_dict() for hero_power in hero_power]), 200)
-   
-    elif request.method == 'POST':
-            strength=request.json('strength'),
-            hero_id=request.json('hero_id'),
-            power_id=request.json('power_id')
-        
-            valid_strengths = {'Strong', 'Weak', 'Average'}
-            if strength not in valid_strengths:
-                return make_response({"errors": ["validation errors"]}, 400)
+    try:
+        data = request.get_json() if request.is_json else request.form
+        hero_power = HeroPower(**data)
+        db.session.add(hero_power)
+        db.session.commit()
+        return make_response(hero_power.to_dict(), 200)
+    except ValueError:
+        return make_response({"errors": ["validation errors"]}, 400)
 
-        # Create a new HeroPower instance
-            new_power = HeroPower(
-                strength=strength,
-                power_id=power_id,
-                hero_id=hero_id
-            )
-            db.session.add(new_power)
-            db.session.commit() 
-            return make_response(new_power.to_dict(), 200)
-        
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
